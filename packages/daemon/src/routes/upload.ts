@@ -23,7 +23,7 @@ export async function registerUploadRoutes(
   deps: UploadRouteDeps,
 ): Promise<void> {
   const { config, storage } = deps;
-  const uploadsDir = path.join(config.DATA_DIR, 'tus-uploads');
+  const uploadsDir = path.join(config.DATA_DIR, '.tus-uploads');
 
   // Ensure TUS upload directory exists
   await fs.promises.mkdir(uploadsDir, { recursive: true });

@@ -12,7 +12,7 @@ export class StorageService {
   private readonly transfersDir: string;
 
   constructor(private readonly config: AppConfig) {
-    this.transfersDir = path.join(config.DATA_DIR, 'transfers');
+    this.transfersDir = config.DATA_DIR;
   }
 
   /**
@@ -157,6 +157,10 @@ export class StorageService {
           const stat = await fs.promises.stat(fullPath);
           size += stat.size;
         } else if (entry.isDirectory()) {
+          // Skip temporary/system directories to only measure actual transfer storage
+          if (entry.name === '.tus-uploads' || entry.name === 'tus-uploads') {
+            continue;
+          }
           size += await this.computeDirSize(fullPath);
         }
       }
