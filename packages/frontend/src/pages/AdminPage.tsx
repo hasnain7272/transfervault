@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { formatBytes } from '@/lib/utils';
-import { Loader2, Activity, HardDrive, Download, Upload } from 'lucide-react';
+import { Loader2, Activity, HardDrive, Download, Upload, Settings, CheckCircle2, AlertCircle, RefreshCw } from 'lucide-react';
 import { getDaemonUrl } from '@/lib/api';
 
 export function AdminPage() {
@@ -11,9 +11,17 @@ export function AdminPage() {
   const [authenticated, setAuthenticated] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Daemon settings state
+  const [daemonUrlInput, setDaemonUrlInput] = useState('');
+  const [testStatus, setTestStatus] = useState<'idle' | 'checking' | 'healthy' | 'offline'>('idle');
+  const [testError, setTestError] = useState('');
+
   const fetchStats = async (adminSecret: string) => {
     try {
       const DAEMON_URL = getDaemonUrl();
+      if (!DAEMON_URL) {
+        throw new Error('No active daemon URL resolved. Ensure your daemon is running and has registered its URL.');
+      }
       
       const [statsRes, transfersRes] = await Promise.all([
         fetch(`${DAEMON_URL}/api/admin/stats`, { headers: { 'x-daemon-secret': adminSecret } }),
@@ -47,11 +55,80 @@ export function AdminPage() {
     }
   }, []);
 
+  useEffect(() => {
+    if (authenticated) {
+      setDaemonUrlInput(getDaemonUrl());
+    }
+  }, [authenticated]);
+
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     localStorage.setItem('admin_secret', secret);
     fetchStats(secret);
+  };
+
+  const handleSaveUrl = () => {
+    let cleanUrl = daemonUrlInput.trim();
+    if (cleanUrl) {
+      cleanUrl = cleanUrl.replace(/\/$/, '');
+      localStorage.setItem('transfervault_daemon_url', cleanUrl);
+    } else {
+      localStorage.removeItem('transfervault_daemon_url');
+    }
+    setTestStatus('idle');
+    setTestError('');
+    // Fetch stats again with the new URL
+    if (secret) fetchStats(secret);
+  };
+
+  const handleResetUrl = () => {
+    localStorage.removeItem('transfervault_daemon_url');
+    setDaemonUrlInput(getDaemonUrl());
+    setTestStatus('idle');
+    setTestError('');
+    if (secret) fetchStats(secret);
+  };
+
+  const testConnection = async () => {
+    setTestStatus('checking');
+    setTestError('');
+    let url = daemonUrlInput.trim().replace(/\/$/, '');
+    
+    if (!url) {
+      setTestStatus('offline');
+      setTestError('Endpoint URL cannot be empty');
+      return;
+    }
+
+    if (!/^https?:\/\//i.test(url)) {
+      url = `http://${url}`;
+    }
+
+    try {
+      const controller = new AbortController();
+      const id = setTimeout(() => controller.abort(), 6000); // 6s timeout
+
+      const res = await fetch(`${url}/health`, {
+        signal: controller.signal,
+        headers: { 'Accept': 'application/json' }
+      });
+      clearTimeout(id);
+
+      if (res.ok) {
+        setTestStatus('healthy');
+      } else {
+        setTestStatus('offline');
+        setTestError(`Returned status code: ${res.status}`);
+      }
+    } catch (err) {
+      setTestStatus('offline');
+      setTestError(
+        err instanceof Error && err.name === 'AbortError'
+          ? 'Connection timed out after 6 seconds'
+          : 'Could not connect. Ensure your daemon is running, tunnel is active, and CORS is enabled.'
+      );
+    }
   };
 
   if (loading) {
@@ -106,7 +183,79 @@ export function AdminPage() {
         </button>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+      {/* Daemon Settings Card */}
+      <div className="card p-6 mb-8 border border-surface-200 bg-white">
+        <h2 className="text-lg font-bold text-surface-900 mb-2 flex items-center gap-2">
+          <Settings className="h-5 w-5 text-vault-500" />
+          Daemon Connection Settings
+        </h2>
+        <p className="text-xs text-surface-500 mb-4 leading-relaxed">
+          Your laptop serves as the physical storage vault. When hosting live, the frontend automatically discovers the daemon's active tunnel URL from Supabase. You can manually override or test the connection here.
+        </p>
+        
+        <div className="flex flex-col md:flex-row gap-3 items-end">
+          <div className="flex-1 w-full space-y-1">
+            <label className="text-xs font-semibold text-surface-700">Active Daemon URL</label>
+            <input
+              type="url"
+              value={daemonUrlInput}
+              onChange={(e) => {
+                setDaemonUrlInput(e.target.value);
+                setTestStatus('idle');
+              }}
+              placeholder="https://your-tunnel.loca.lt"
+              className="w-full rounded-xl border border-surface-300 bg-surface-50 px-3.5 py-2 text-sm text-surface-900 focus:outline-none focus:ring-1 focus:ring-vault-500 focus:border-vault-500 shadow-sm"
+            />
+          </div>
+          <div className="flex flex-wrap gap-2 w-full md:w-auto justify-end">
+            <button
+              onClick={handleSaveUrl}
+              className="btn-primary py-2 px-4 text-xs font-medium"
+            >
+              Save URL
+            </button>
+            <button
+              onClick={handleResetUrl}
+              className="btn-secondary py-2 px-4 text-xs font-medium hover:text-accent-rose"
+            >
+              Reset Default
+            </button>
+            <button
+              disabled={testStatus === 'checking'}
+              onClick={testConnection}
+              className="btn-secondary py-2 px-4 text-xs font-medium flex items-center gap-1.5"
+            >
+              {testStatus === 'checking' ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : null}
+              Test Connection
+            </button>
+          </div>
+        </div>
+
+        {/* Live check response */}
+        {testStatus !== 'idle' && (
+          <div className={`mt-4 rounded-xl p-3 border text-xs flex gap-2 ${
+            testStatus === 'checking' ? 'bg-surface-50 border-surface-200 text-surface-600' :
+            testStatus === 'healthy' ? 'bg-accent-emerald/5 border-accent-emerald/20 text-accent-emerald' :
+            'bg-accent-rose/5 border-accent-rose/20 text-accent-rose'
+          }`}>
+            <div className="mt-0.5 flex-shrink-0">
+              {testStatus === 'checking' && <RefreshCw className="h-4 w-4 animate-spin text-surface-500" />}
+              {testStatus === 'healthy' && <CheckCircle2 className="h-4 w-4" />}
+              {testStatus === 'offline' && <AlertCircle className="h-4 w-4" />}
+            </div>
+            <div>
+              <p className="font-semibold">
+                {testStatus === 'checking' && 'Pinging active daemon URL...'}
+                {testStatus === 'healthy' && 'Connection healthy and fully operational!'}
+                {testStatus === 'offline' && 'Daemon is unreachable'}
+              </p>
+              {testError && <p className="mt-1 text-[11px] font-mono leading-relaxed opacity-95">{testError}</p>}
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
         {/* Status */}
         <div className="card p-6">
           <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-vault-500/10 text-vault-500">
