@@ -1,0 +1,381 @@
+@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+/* ================================================
+   TransferVault — Design System
+   Premium, dark-first design inspired by Linear, 
+   Stripe, and WeTransfer.
+   ================================================ */
+
+@theme {
+  /* ── Color Palette ── */
+  --color-vault-50: #eef2ff;
+  --color-vault-100: #e0e7ff;
+  --color-vault-200: #c7d2fe;
+  --color-vault-300: #a5b4fc;
+  --color-vault-400: #818cf8;
+  --color-vault-500: #6366f1;
+  --color-vault-600: #4f46e5;
+  --color-vault-700: #4338ca;
+  --color-vault-800: #3730a3;
+  --color-vault-900: #312e81;
+  --color-vault-950: #1e1b4b;
+
+  --color-surface-0: #09090b;
+  --color-surface-50: #0f0f12;
+  --color-surface-100: #18181b;
+  --color-surface-200: #1f1f23;
+  --color-surface-300: #27272a;
+  --color-surface-400: #3f3f46;
+  --color-surface-500: #52525b;
+  --color-surface-600: #71717a;
+  --color-surface-700: #a1a1aa;
+  --color-surface-800: #d4d4d8;
+  --color-surface-900: #e4e4e7;
+  --color-surface-950: #fafafa;
+
+  --color-accent-cyan: #06b6d4;
+  --color-accent-emerald: #10b981;
+  --color-accent-amber: #f59e0b;
+  --color-accent-rose: #f43f5e;
+
+  /* ── Typography ── */
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+
+  /* ── Animations ── */
+  --animate-fade-in: fade-in 0.5s ease-out;
+  --animate-slide-up: slide-up 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  --animate-slide-down: slide-down 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  --animate-scale-in: scale-in 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  --animate-glow-pulse: glow-pulse 3s ease-in-out infinite;
+  --animate-float: float 6s ease-in-out infinite;
+  --animate-shimmer: shimmer 2s linear infinite;
+
+  /* ── Spacing ── */
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+  --radius-2xl: 1.25rem;
+}
+
+/* ── Keyframes ── */
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slide-down {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes scale-in {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes glow-pulse {
+  0%, 100% { box-shadow: 0 0 20px rgba(99, 102, 241, 0.15); }
+  50% { box-shadow: 0 0 40px rgba(99, 102, 241, 0.3); }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes progress-stripe {
+  0% { background-position: 1rem 0; }
+  100% { background-position: 0 0; }
+}
+
+/* ── Base styles ── */
+* {
+  border-color: var(--color-surface-300);
+}
+
+html {
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--color-surface-0);
+  color: var(--color-surface-900);
+  line-height: 1.6;
+  min-height: 100vh;
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-surface-400);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-surface-500);
+}
+
+/* ── Selection ── */
+::selection {
+  background-color: rgba(99, 102, 241, 0.3);
+  color: white;
+}
+
+/* ── Focus ring ── */
+:focus-visible {
+  outline: 2px solid var(--color-vault-500);
+  outline-offset: 2px;
+}
+
+/* ── Utility: Glass effect ── */
+.glass {
+  background: rgba(15, 15, 18, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.glass-light {
+  background: rgba(24, 24, 27, 0.6);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* ── Utility: Gradient text ── */
+.gradient-text {
+  background: linear-gradient(135deg, var(--color-vault-400), var(--color-accent-cyan));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.gradient-text-warm {
+  background: linear-gradient(135deg, var(--color-vault-400), var(--color-accent-rose));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ── Utility: Gradient borders ── */
+.gradient-border {
+  position: relative;
+}
+
+.gradient-border::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(135deg, var(--color-vault-500), var(--color-accent-cyan));
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  -webkit-mask-composite: xor;
+  pointer-events: none;
+}
+
+/* ── Utility: Noise texture ── */
+.noise::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+  pointer-events: none;
+  border-radius: inherit;
+}
+
+/* ── Utility: Shimmer ── */
+.shimmer {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.05) 50%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 2s linear infinite;
+}
+
+/* ── Button base ── */
+.btn-primary {
+  background: linear-gradient(135deg, var(--color-vault-600), var(--color-vault-500));
+  color: white;
+  font-weight: 600;
+  border-radius: var(--radius-lg);
+  padding: 0.625rem 1.5rem;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(99, 102, 241, 0.1);
+}
+
+.btn-primary:hover {
+  background: linear-gradient(135deg, var(--color-vault-500), var(--color-vault-400));
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25), 0 0 0 1px rgba(99, 102, 241, 0.2);
+  transform: translateY(-1px);
+}
+
+.btn-primary:active {
+  transform: translateY(0);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.btn-secondary {
+  background: var(--color-surface-200);
+  color: var(--color-surface-800);
+  font-weight: 500;
+  border-radius: var(--radius-lg);
+  padding: 0.625rem 1.5rem;
+  transition: all 0.2s;
+  border: 1px solid var(--color-surface-300);
+}
+
+.btn-secondary:hover {
+  background: var(--color-surface-300);
+  border-color: var(--color-surface-400);
+}
+
+/* ── Card ── */
+.card {
+  background: var(--color-surface-100);
+  border: 1px solid var(--color-surface-300);
+  border-radius: var(--radius-xl);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.card:hover {
+  border-color: var(--color-surface-400);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2);
+}
+
+/* ── Input ── */
+.input {
+  background: var(--color-surface-100);
+  border: 1px solid var(--color-surface-300);
+  border-radius: var(--radius-lg);
+  padding: 0.625rem 1rem;
+  color: var(--color-surface-900);
+  font-size: 0.9375rem;
+  transition: all 0.2s;
+}
+
+.input:focus {
+  border-color: var(--color-vault-500);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+  outline: none;
+}
+
+.input::placeholder {
+  color: var(--color-surface-500);
+}
+
+/* ── Progress bar ── */
+.progress-bar {
+  background: var(--color-surface-200);
+  border-radius: 9999px;
+  overflow: hidden;
+  height: 6px;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  border-radius: 9999px;
+  background: linear-gradient(90deg, var(--color-vault-600), var(--color-vault-400));
+  transition: width 0.3s ease;
+}
+
+/* ── Dot grid background ── */
+.dot-grid {
+  background-image: radial-gradient(circle, var(--color-surface-300) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+/* ── Hero gradient ── */
+.hero-gradient {
+  background: radial-gradient(
+    ellipse 80% 50% at 50% -20%,
+    rgba(99, 102, 241, 0.15) 0%,
+    transparent 70%
+  );
+}
+
+/* ── Pair code styling ── */
+.pair-code {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: 1.5rem;
+  letter-spacing: 0.15em;
+  color: var(--color-vault-400);
+}
+
+.pair-code-input {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: 2rem;
+  letter-spacing: 0.2em;
+  text-align: center;
+  text-transform: uppercase;
+  background: var(--color-surface-100);
+  border: 2px solid var(--color-surface-300);
+  border-radius: var(--radius-xl);
+  padding: 1rem 1.5rem;
+  color: var(--color-surface-950);
+  transition: all 0.3s;
+  width: 100%;
+  max-width: 420px;
+}
+
+.pair-code-input:focus {
+  border-color: var(--color-vault-500);
+  box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.15);
+  outline: none;
+}
+
+/* ── Drop zone ── */
+.dropzone {
+  border: 2px dashed var(--color-surface-400);
+  border-radius: var(--radius-2xl);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+}
+
+.dropzone:hover,
+.dropzone.active {
+  border-color: var(--color-vault-500);
+  background: rgba(99, 102, 241, 0.05);
+  box-shadow: 0 0 30px rgba(99, 102, 241, 0.1);
+}
+
+.dropzone.active {
+  border-style: solid;
+  transform: scale(1.01);
+}

@@ -1,0 +1,31 @@
+{
+  "name": "transfervault",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Ultra-premium file transfer platform. Private. Fast. Simple.",
+  "workspaces": [
+    "packages/frontend",
+    "packages/daemon"
+  ],
+  "scripts": {
+    "dev:frontend": "npm run dev --workspace=packages/frontend",
+    "dev:daemon": "npm run dev --workspace=packages/daemon",
+    "build:frontend": "npm run build --workspace=packages/frontend",
+    "build:daemon": "npm run build --workspace=packages/daemon",
+    "lint": "eslint packages/*/src --ext .ts,.tsx",
+    "format": "prettier --write \"packages/*/src/**/*.{ts,tsx,css}\"",
+    "test": "npm run test --workspaces --if-present",
+    "clean": "rimraf packages/*/dist packages/*/node_modules"
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^8.32.1",
+    "@typescript-eslint/parser": "^8.32.1",
+    "eslint": "^9.27.0",
+    "prettier": "^3.5.3",
+    "rimraf": "^6.0.1",
+    "typescript": "^5.8.3"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
