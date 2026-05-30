@@ -4,10 +4,11 @@
 // ============================================
 
 import 'dotenv/config';
+import fs from 'node:fs';
 import { loadConfig } from './config.js';
 import { createServer } from './server.js';
 import { StorageService } from './services/storage.js';
-import localtunnel from 'localtunnel';
+import { bin, install, Tunnel } from 'cloudflared';
 import { SupabaseSyncService } from './services/supabase-sync.js';
 import { TransferService } from './services/transfer.js';
 import { CleanupService } from './services/cleanup.js';
@@ -74,14 +75,34 @@ async function main() {
   let tunnel: any = null;
   if (config.USE_LOCAL_TUNNEL) {
     try {
-      console.log('⚡ Establishing automated public HTTPS tunnel via localtunnel...');
-      // Start localtunnel programmatically on configured Fastify port
-      tunnel = await localtunnel({ port: config.PORT });
-      config.PUBLIC_URL = tunnel.url;
-      console.log(`✓ Automated HTTPS Tunnel established: ${config.PUBLIC_URL}`);
+      console.log('⚡ Establishing automated public HTTPS tunnel via Cloudflare...');
+      if (!fs.existsSync(bin)) {
+        console.log('⬇️ Downloading cloudflared binary (first-time setup, please wait)...');
+        await install(bin);
+      }
       
-      tunnel.on('close', () => {
-        console.warn('⚠️ Automated HTTPS tunnel was closed.');
+      tunnel = Tunnel.quick(`http://localhost:${config.PORT}`);
+      
+      await new Promise<void>((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          reject(new Error('Cloudflare Tunnel connection timed out after 45 seconds'));
+        }, 45000);
+
+        tunnel.once('url', (url: string) => {
+          clearTimeout(timeout);
+          config.PUBLIC_URL = url;
+          console.log(`✓ Automated HTTPS Tunnel established: ${config.PUBLIC_URL}`);
+          resolve();
+        });
+
+        tunnel.once('error', (err: Error) => {
+          clearTimeout(timeout);
+          reject(err);
+        });
+      });
+      
+      tunnel.on('exit', (code: any, signal: any) => {
+        console.warn(`⚠️ Automated HTTPS tunnel process exited (code: ${code}, signal: ${signal}).`);
       });
     } catch (err) {
       console.error('❌ Failed to establish automated HTTPS tunnel:', err);
@@ -121,7 +142,7 @@ async function main() {
     if (tunnel) {
       console.log('Closing automated tunnel...');
       try {
-        await tunnel.close();
+        tunnel.stop();
       } catch (err) {
         console.error('Error closing tunnel:', err);
       }
