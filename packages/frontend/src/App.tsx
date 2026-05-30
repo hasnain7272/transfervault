@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Layout } from '@/components/layout/Layout';
@@ -20,8 +20,14 @@ const queryClient = new QueryClient({
 });
 
 function App() {
+  const [, setDiscovered] = useState(false);
+
   useEffect(() => {
-    void discoverDaemonUrl();
+    discoverDaemonUrl().then((url) => {
+      if (url) {
+        setDiscovered(true);
+      }
+    });
   }, []);
 
   return (

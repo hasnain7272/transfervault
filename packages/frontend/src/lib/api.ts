@@ -12,8 +12,15 @@ export function getDaemonUrl(): string {
   const discovered = localStorage.getItem('transfervault_discovered_daemon_url');
   if (discovered) return discovered.replace(/\/$/, '');
 
-  const envUrl = (import.meta.env.VITE_DAEMON_URL as string) || '';
-  return envUrl.replace(/\/$/, '') || 'http://localhost:3001';
+  // Fallback to localhost ONLY when running locally in development.
+  // This stops public HTTPS pages from querying localhost and triggering confusing 'Private Network Access' prompts for end-users.
+  const isLocalOrigin = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+  if (isLocalOrigin) {
+    const envUrl = (import.meta.env.VITE_DAEMON_URL as string) || '';
+    return envUrl.replace(/\/$/, '') || 'http://localhost:3001';
+  }
+
+  return '';
 }
 
 export async function discoverDaemonUrl(): Promise<string | null> {
