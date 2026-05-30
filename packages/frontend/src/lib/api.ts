@@ -96,13 +96,18 @@ async function fetchApi<T>(
   options: RequestInit = {},
 ): Promise<T> {
   const url = `${getDaemonUrl()}${path}`;
+  const headers: Record<string, string> = {
+    'bypass-tunnel-reminder': 'true', // Bypass localtunnel reminder landing page
+    ...((options.headers as Record<string, string>) || {}),
+  };
+
+  if (options.body) {
+    headers['Content-Type'] = 'application/json';
+  }
+
   const res = await fetch(url, {
     ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      'bypass-tunnel-reminder': 'true', // Bypass localtunnel reminder landing page
-      ...options.headers,
-    },
+    headers,
   });
 
   if (!res.ok) {

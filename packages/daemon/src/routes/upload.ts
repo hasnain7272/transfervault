@@ -32,8 +32,10 @@ export async function registerUploadRoutes(
     path: '/api/tus',
     datastore: new FileStore({ directory: uploadsDir }),
     maxSize: config.MAX_FILE_SIZE_GB * 1024 * 1024 * 1024,
-    generateUrl: (_req, { proto, host, path: tusPath, id }) => {
-      return `${proto}://${host}${tusPath}/${id}`;
+    generateUrl: (req, { proto, host, path: tusPath, id }) => {
+      const forwardedProto = req.headers['x-forwarded-proto'];
+      const resolvedProto = typeof forwardedProto === 'string' ? forwardedProto : proto;
+      return `${resolvedProto}://${host}${tusPath}/${id}`;
     },
     namingFunction: (_req, metadata) => {
       // Use transfer-specific naming: {pairCode}_{fileId}_{filename}
