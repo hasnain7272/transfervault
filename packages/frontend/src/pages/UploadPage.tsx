@@ -113,7 +113,12 @@ export function UploadPage() {
             
             const upload = new tus.Upload(uploadFile.file, {
               endpoint: tusEndpoint,
-              retryDelays: [0, 1000, 3000, 5000],
+              // 50 MB chunks — keeps each PATCH well under Cloudflare tunnel's ~100 MB request body limit
+              chunkSize: 50 * 1024 * 1024,
+              // Aggressive retries for large files over tunnels — up to ~5 minutes of back-off before giving up
+              retryDelays: [0, 1000, 3000, 5000, 10000, 20000, 30000, 60000],
+              // Clean up resumable-upload fingerprint from localStorage after successful upload
+              removeFingerprintOnSuccess: true,
               headers: {
                 'bypass-tunnel-reminder': 'true',
               },

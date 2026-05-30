@@ -63,10 +63,14 @@ export async function createServer(config: AppConfig): Promise<FastifyInstance> 
     credentials: true,
   });
 
-  // Global rate limiting
+  // Global rate limiting (exclude TUS upload paths — each file chunk is a separate request)
   await app.register(rateLimit, {
     max: config.RATE_LIMIT_MAX,
     timeWindow: config.RATE_LIMIT_WINDOW_MS,
+    allowList: (req) => {
+      // TUS uploads generate hundreds of requests for large files (one per chunk)
+      return req.url?.startsWith('/api/tus') ?? false;
+    },
   });
 
   // Health check
