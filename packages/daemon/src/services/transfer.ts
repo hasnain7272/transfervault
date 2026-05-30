@@ -276,4 +276,29 @@ export class TransferService {
 
     return true;
   }
+
+  /**
+   * Delete a transfer as Admin (bypasses owner check).
+   */
+  async deleteTransferAsAdmin(transferId: string): Promise<boolean> {
+    const transfer = await this.supabase.getTransferById(transferId);
+    if (!transfer) return false;
+
+    // Delete from disk
+    await this.storage.deleteTransfer(transfer.pair_code);
+
+    // Update Supabase
+    await this.supabase.updateTransfer(transferId, { status: 'deleted' });
+
+    // Log
+    await this.supabase.logAudit({
+      transfer_id: transferId,
+      event_type: 'transfer_deleted',
+      ip_address: null,
+      user_agent: null,
+      metadata: { admin: true },
+    });
+
+    return true;
+  }
 }

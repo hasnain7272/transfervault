@@ -100,6 +100,7 @@ async function fetchApi<T>(
     ...options,
     headers: {
       'Content-Type': 'application/json',
+      'bypass-tunnel-reminder': 'true', // Bypass localtunnel reminder landing page
       ...options.headers,
     },
   });
@@ -188,6 +189,17 @@ export const api = {
     adminSecret: string,
   ): string {
     return `${getDaemonUrl()}/api/download/${transferId}/${fileId}?admin_secret=${encodeURIComponent(adminSecret)}`;
+  },
+
+  /** Admin: Delete any transfer */
+  deleteAdminTransfer(
+    transferId: string,
+    adminSecret: string,
+  ): Promise<{ deleted: boolean }> {
+    return fetchApi(`/api/admin/transfers/${transferId}`, {
+      method: 'DELETE',
+      headers: { 'x-daemon-secret': adminSecret },
+    });
   },
 };
 

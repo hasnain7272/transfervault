@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { formatBytes } from '@/lib/utils';
-import { Loader2, Activity, HardDrive, Download, Upload, Settings, CheckCircle2, AlertCircle, RefreshCw } from 'lucide-react';
-import { getDaemonUrl } from '@/lib/api';
+import { Loader2, Activity, HardDrive, Download, Upload, Settings, CheckCircle2, AlertCircle, RefreshCw, Trash2 } from 'lucide-react';
+import { getDaemonUrl, api } from '@/lib/api';
 
 export function AdminPage() {
   const [stats, setStats] = useState<any>(null);
@@ -24,8 +24,18 @@ export function AdminPage() {
       }
       
       const [statsRes, transfersRes] = await Promise.all([
-        fetch(`${DAEMON_URL}/api/admin/stats`, { headers: { 'x-daemon-secret': adminSecret } }),
-        fetch(`${DAEMON_URL}/api/admin/transfers?limit=100`, { headers: { 'x-daemon-secret': adminSecret } })
+        fetch(`${DAEMON_URL}/api/admin/stats`, {
+          headers: {
+            'x-daemon-secret': adminSecret,
+            'bypass-tunnel-reminder': 'true', // Bypass localtunnel warning page
+          },
+        }),
+        fetch(`${DAEMON_URL}/api/admin/transfers?limit=100`, {
+          headers: {
+            'x-daemon-secret': adminSecret,
+            'bypass-tunnel-reminder': 'true', // Bypass localtunnel warning page
+          },
+        })
       ]);
       
       if (!statsRes.ok || !transfersRes.ok) throw new Error('Invalid secret or daemon offline');
@@ -90,6 +100,17 @@ export function AdminPage() {
     if (secret) fetchStats(secret);
   };
 
+  const handleDeleteTransfer = async (transferId: string) => {
+    if (!confirm('Are you sure you want to permanently delete this transfer and all its files from disk?')) return;
+    try {
+      await api.deleteAdminTransfer(transferId, secret);
+      fetchStats(secret);
+      alert('Transfer deleted successfully');
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to delete transfer');
+    }
+  };
+
   const testConnection = async () => {
     setTestStatus('checking');
     setTestError('');
@@ -111,7 +132,10 @@ export function AdminPage() {
 
       const res = await fetch(`${url}/health`, {
         signal: controller.signal,
-        headers: { 'Accept': 'application/json' }
+        headers: {
+          'Accept': 'application/json',
+          'bypass-tunnel-reminder': 'true', // Bypass localtunnel warning landing page
+        }
       });
       clearTimeout(id);
 
@@ -329,6 +353,7 @@ export function AdminPage() {
                         <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${
                           t.status === 'ready' ? 'bg-accent-emerald/10 text-accent-emerald' :
                           t.status === 'uploading' ? 'bg-vault-500/10 text-vault-500' :
+                          t.status === 'deleted' ? 'bg-accent-rose/10 text-accent-rose' :
                           'bg-surface-200 text-surface-600'
                         }`}>
                           {t.status}
@@ -348,7 +373,7 @@ export function AdminPage() {
                         </div>
                       </td>
                       <td className="px-6 py-4 text-right">
-                        <div className="flex flex-col items-end gap-2">
+                        <div className="flex flex-col items-end gap-2.5">
                           {t.status === 'ready' && t.files?.map((f: any) => {
                             const DAEMON_URL = getDaemonUrl();
                             const downloadUrl = `${DAEMON_URL}/api/download/${t.id}/${f.id}?admin_secret=${encodeURIComponent(secret)}`;
@@ -357,13 +382,23 @@ export function AdminPage() {
                                 key={`dl-${f.id}`}
                                 href={downloadUrl}
                                 download={f.filename}
-                                className="inline-flex items-center gap-1.5 text-sm font-medium text-vault-500 hover:text-vault-600 transition-colors"
+                                className="inline-flex items-center gap-1.5 text-xs font-semibold text-vault-500 hover:text-vault-600 transition-colors"
                               >
-                                <Download className="h-4 w-4" />
+                                <Download className="h-3.5 w-3.5" />
                                 Download {f.filename.length > 15 ? f.filename.slice(0, 15) + '...' : f.filename}
                               </a>
                             );
                           })}
+                          {t.status !== 'deleted' && (
+                            <button
+                              onClick={() => handleDeleteTransfer(t.id)}
+                              className="inline-flex items-center gap-1 text-xs font-semibold text-accent-rose hover:text-rose-600 transition-colors mt-1"
+                              title="Delete Transfer"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                              Delete Transfer
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>

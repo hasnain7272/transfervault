@@ -21,7 +21,7 @@ export async function registerAdminRoutes(
   app: FastifyInstance,
   deps: AdminRouteDeps,
 ): Promise<void> {
-  const { config, storage, supabase, startTime } = deps;
+  const { config, storage, supabase, startTime, transferService } = deps;
 
   // Auth middleware for admin routes
   app.addHook('onRequest', async (request, reply) => {
@@ -117,6 +117,25 @@ export async function registerAdminRoutes(
       } catch (err) {
         app.log.error(err, 'Failed to get audit logs');
         return reply.status(500).send({ error: 'Failed to get audit logs' });
+      }
+    },
+  );
+
+  // ──────────────────────────────────────────
+  // DELETE /api/admin/transfers/:id — Delete a transfer as Admin
+  // ──────────────────────────────────────────
+  app.delete<{ Params: { id: string } }>(
+    '/api/admin/transfers/:id',
+    async (request, reply) => {
+      try {
+        const deleted = await transferService.deleteTransferAsAdmin(request.params.id);
+        if (!deleted) {
+          return reply.status(404).send({ error: 'Transfer not found' });
+        }
+        return reply.send({ deleted: true });
+      } catch (err) {
+        app.log.error(err, 'Failed to delete transfer as admin');
+        return reply.status(500).send({ error: 'Failed to delete transfer' });
       }
     },
   );

@@ -110,6 +110,9 @@ export function UploadPage() {
             const upload = new tus.Upload(uploadFile.file, {
               endpoint: tusEndpoint,
               retryDelays: [0, 1000, 3000, 5000],
+              headers: {
+                'bypass-tunnel-reminder': 'true',
+              },
               metadata: {
                 filename: uploadFile.path || uploadFile.file.name,
                 filetype: uploadFile.file.type || 'application/octet-stream',
