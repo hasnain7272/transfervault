@@ -253,6 +253,30 @@ export class TransferService {
   }
 
   /**
+   * Get all files for a transfer so the download route can stream an archive.
+   */
+  async getDownloadArchiveFiles(
+    transferId: string,
+  ): Promise<Array<{ path: string; filename: string; size: number; mime: string | null }> | null> {
+    const transfer = await this.supabase.getTransferById(transferId);
+    if (!transfer || transfer.status !== 'ready') return null;
+
+    const exists = await this.storage.transferExists(transfer.pair_code);
+    if (!exists) return null;
+
+    const files = await this.supabase.getFilesByTransfer(transferId);
+    return files.map((file) => ({
+      path: this.storage.getFilePath(
+        transfer.pair_code,
+        file.storage_path ?? file.filename,
+      ),
+      filename: file.filename,
+      size: file.size_bytes,
+      mime: file.mime_type,
+    }));
+  }
+
+  /**
    * Delete a transfer (by owner).
    */
   async deleteTransfer(transferId: string, ownerId: string): Promise<boolean> {

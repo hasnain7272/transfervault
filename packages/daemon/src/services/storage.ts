@@ -51,7 +51,14 @@ export class StorageService {
    * Get the full path for a file within a transfer.
    */
   getFilePath(pairCode: string, filename: string): string {
-    return path.join(this.getTransferPath(pairCode), filename);
+    const safeRelativePath = filename
+      .replace(/\\/g, '/')
+      .replace(/^[a-zA-Z]:\//, '')
+      .split('/')
+      .filter((part) => part && part !== '.' && part !== '..')
+      .join(path.sep);
+
+    return path.join(this.getTransferPath(pairCode), safeRelativePath);
   }
 
   /**

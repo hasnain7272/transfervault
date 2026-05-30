@@ -91,10 +91,31 @@ export function DownloadPage() {
 
   const handleDownloadAll = useCallback(() => {
     if (!store.transfer) return;
+
+    const url = api.getArchiveDownloadUrl(
+      store.transfer.id,
+      store.password || undefined,
+    );
+
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = '';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    store.setStatus('downloading');
     for (const file of store.files) {
-      setTimeout(() => handleDownload(file.id), 500);
+      store.setFileStatus(file.id, 'downloading');
     }
-  }, [store, handleDownload]);
+
+    setTimeout(() => {
+      for (const file of store.files) {
+        store.setFileStatus(file.id, 'complete');
+      }
+      store.setStatus('complete');
+    }, 3000);
+  }, [store]);
 
   const handlePairCodeChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {

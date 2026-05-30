@@ -8,6 +8,7 @@ import fs from 'node:fs';
 import type { TransferService } from '../services/transfer.js';
 import type { SupabaseSyncService } from '../services/supabase-sync.js';
 import type { AppConfig } from '../config.js';
+import { archiveNameFromTitle, createZipStream, sanitizeArchivePath } from '../utils/zip-stream.js';
 
 interface DownloadRouteDeps {
   config: AppConfig;
@@ -21,10 +22,135 @@ export async function registerDownloadRoutes(
 ): Promise<void> {
   const { config, transferService, supabase } = deps;
 
+  async function verifyDownloadAccess(
+    transferId: string,
+    password: string | undefined,
+    adminSecret: string | undefined,
+    request: { ip: string; headers: Record<string, unknown> },
+  ) {
+    const isAdmin = adminSecret === config.DAEMON_SECRET;
+    const transfer = await supabase.getTransferById(transferId);
+    if (!transfer) return { ok: false as const, status: 404, error: 'Transfer not found' };
+
+    if (transfer.password_hash && !isAdmin) {
+      if (!password) return { ok: false as const, status: 401, error: 'Password required' };
+
+      const valid = await transferService.verifyPassword(transferId, password);
+      if (!valid) {
+        await supabase.logAudit({
+          transfer_id: transferId,
+          event_type: 'password_attempt_failed',
+          ip_address: request.ip,
+          user_agent: (request.headers['user-agent'] as string | undefined) ?? null,
+        });
+        return { ok: false as const, status: 401, error: 'Invalid password' };
+      }
+    }
+
+    return { ok: true as const, transfer };
+  }
+
   // ──────────────────────────────────────────
   // GET /api/download/:transferId/:fileId — Download a file
   // Supports HTTP Range requests for resumable downloads.
   // ──────────────────────────────────────────
+  app.get<{
+    Params: { transferId: string };
+    Querystring: { password?: string; admin_secret?: string };
+  }>(
+    '/api/download/:transferId/archive',
+    {
+      config: {
+        rateLimit: {
+          max: 10,
+          timeWindow: '1 minute',
+        },
+      },
+    },
+    async (request, reply) => {
+      const { transferId } = request.params;
+
+      try {
+        const access = await verifyDownloadAccess(
+          transferId,
+          request.query.password,
+          (request.headers['x-daemon-secret'] || request.query.admin_secret) as string | undefined,
+          request,
+        );
+        if (!access.ok) {
+          return reply.status(access.status).send({ error: access.error });
+        }
+
+        const files = await transferService.getDownloadArchiveFiles(transferId);
+        if (!files?.length) {
+          return reply.status(404).send({ error: 'Files not found' });
+        }
+
+        const missing = [];
+        for (const file of files) {
+          try {
+            await fs.promises.access(file.path, fs.constants.R_OK);
+          } catch {
+            missing.push(file.filename);
+          }
+        }
+
+        if (missing.length > 0) {
+          return reply.status(404).send({ error: 'One or more files are not available on disk' });
+        }
+
+        const rootName = archiveNameFromTitle(access.transfer.title, access.transfer.pair_code);
+        const archiveFiles = files.map((file) => ({
+          sourcePath: file.path,
+          archivePath: `${rootName}/${sanitizeArchivePath(file.filename)}`,
+        }));
+        const archiveFilename = `${rootName}.zip`;
+
+        await supabase.logAudit({
+          transfer_id: transferId,
+          event_type: 'download_started',
+          ip_address: request.ip,
+          user_agent: request.headers['user-agent'] ?? null,
+          metadata: { archive: true, file_count: files.length },
+        });
+
+        const stream = createZipStream(archiveFiles);
+        await supabase.incrementDownloadCount(transferId);
+
+        reply
+          .header('Content-Type', 'application/zip')
+          .header(
+            'Content-Disposition',
+            `attachment; filename="${encodeURIComponent(archiveFilename)}"; filename*=UTF-8''${encodeURIComponent(archiveFilename)}`,
+          );
+
+        stream.on('end', () => {
+          void supabase.logAudit({
+            transfer_id: transferId,
+            event_type: 'download_completed',
+            ip_address: request.ip,
+            user_agent: request.headers['user-agent'] ?? null,
+            metadata: { archive: true, file_count: files.length },
+          });
+        });
+
+        return reply.send(stream);
+      } catch (err) {
+        request.log.error(err, 'Archive download failed');
+
+        await supabase.logAudit({
+          transfer_id: transferId,
+          event_type: 'download_failed',
+          ip_address: request.ip,
+          user_agent: request.headers['user-agent'] ?? null,
+          metadata: { archive: true, error: String(err) },
+        });
+
+        return reply.status(500).send({ error: 'Download failed' });
+      }
+    },
+  );
+
   app.get<{
     Params: { transferId: string; fileId: string };
     Querystring: { password?: string; admin_secret?: string };

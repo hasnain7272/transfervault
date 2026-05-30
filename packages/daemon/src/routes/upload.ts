@@ -11,6 +11,7 @@ import fs from 'node:fs';
 import type { StorageService } from '../services/storage.js';
 import type { SupabaseSyncService } from '../services/supabase-sync.js';
 import type { AppConfig } from '../config.js';
+import { sanitizeArchivePath } from '../utils/zip-stream.js';
 
 interface UploadRouteDeps {
   config: AppConfig;
@@ -58,7 +59,8 @@ export async function registerUploadRoutes(
       if (pairCode && filename) {
         const sourcePath = path.join(uploadsDir, upload.id);
         const targetDir = storage.getTransferPath(pairCode);
-        const targetPath = path.join(targetDir, filename);
+        const safeFilename = sanitizeArchivePath(filename) || upload.id;
+        const targetPath = path.join(targetDir, safeFilename);
 
         try {
           // Recursively create target folder structure (especially for nested folder uploads)

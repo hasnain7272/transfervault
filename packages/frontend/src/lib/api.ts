@@ -175,6 +175,18 @@ export const api = {
     return base;
   },
 
+  /** Get archive download URL for the whole transfer */
+  getArchiveDownloadUrl(
+    transferId: string,
+    password?: string,
+  ): string {
+    const base = `${getDaemonUrl()}/api/download/${transferId}/archive`;
+    if (password) {
+      return `${base}?password=${encodeURIComponent(password)}`;
+    }
+    return base;
+  },
+
   /** Get TUS endpoint URL */
   getTusEndpoint(): string {
     return `${getDaemonUrl()}/api/tus`;
