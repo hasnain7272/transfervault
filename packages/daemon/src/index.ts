@@ -77,42 +77,61 @@ async function main() {
   cleanup.start();
   console.log('✓ Cleanup service started');
 
-  // Automated Public Tunnel Setup
+  // Automated Public Tunnel with auto-restart on disconnect
   let tunnel: any = null;
+  let tunnelRestartTimer: ReturnType<typeof setTimeout> | null = null;
+
   if (config.USE_LOCAL_TUNNEL) {
-    try {
-      console.log('⚡ Establishing automated public HTTPS tunnel via Cloudflare...');
-      if (!fs.existsSync(bin)) {
-        console.log('⬇️ Downloading cloudflared binary (first-time setup, please wait)...');
-        await install(bin);
+    let consecutiveFailures = 0;
+
+    const establishTunnel = async (): Promise<void> => {
+      try {
+        console.log('⚡ Establishing Cloudflare tunnel...');
+        if (!fs.existsSync(bin)) {
+          console.log('⬇️ Downloading cloudflared binary (first-time setup)...');
+          await install(bin);
+        }
+
+        const newTunnel = Tunnel.quick(`http://localhost:${config.PORT}`);
+
+        await new Promise<void>((resolve, reject) => {
+          const timeout = setTimeout(() => {
+            reject(new Error('Tunnel connection timed out after 45 seconds'));
+          }, 45000);
+
+          newTunnel.once('url', (url: string) => {
+            clearTimeout(timeout);
+            tunnel = newTunnel;
+            config.PUBLIC_URL = url;
+            consecutiveFailures = 0;
+            console.log(`✓ Tunnel established: ${url}`);
+            resolve();
+          });
+
+          newTunnel.once('error', (err: Error) => {
+            clearTimeout(timeout);
+            reject(err);
+          });
+        });
+
+        // Auto-restart when tunnel drops (free Cloudflare tunnels recycle ~every 24h)
+        newTunnel.on('exit', (code: any, signal: any) => {
+          console.warn(`⚠️ Tunnel exited (code: ${code}, signal: ${signal})`);
+          tunnel = null;
+          const delay = Math.min(5000 * Math.pow(2, consecutiveFailures), 60000);
+          consecutiveFailures++;
+          console.log(`🔄 Restarting tunnel in ${Math.round(delay / 1000)}s...`);
+          tunnelRestartTimer = setTimeout(() => void establishTunnel(), delay);
+        });
+      } catch (err) {
+        consecutiveFailures++;
+        const delay = Math.min(5000 * Math.pow(2, consecutiveFailures - 1), 60000);
+        console.error(`❌ Tunnel failed, retrying in ${Math.round(delay / 1000)}s:`, err);
+        tunnelRestartTimer = setTimeout(() => void establishTunnel(), delay);
       }
-      
-      tunnel = Tunnel.quick(`http://localhost:${config.PORT}`);
-      
-      await new Promise<void>((resolve, reject) => {
-        const timeout = setTimeout(() => {
-          reject(new Error('Cloudflare Tunnel connection timed out after 45 seconds'));
-        }, 45000);
+    };
 
-        tunnel.once('url', (url: string) => {
-          clearTimeout(timeout);
-          config.PUBLIC_URL = url;
-          console.log(`✓ Automated HTTPS Tunnel established: ${config.PUBLIC_URL}`);
-          resolve();
-        });
-
-        tunnel.once('error', (err: Error) => {
-          clearTimeout(timeout);
-          reject(err);
-        });
-      });
-      
-      tunnel.on('exit', (code: any, signal: any) => {
-        console.warn(`⚠️ Automated HTTPS tunnel process exited (code: ${code}, signal: ${signal}).`);
-      });
-    } catch (err) {
-      console.error('❌ Failed to establish automated HTTPS tunnel:', err);
-    }
+    await establishTunnel();
   }
 
   // 8. Start heartbeat
@@ -143,10 +162,16 @@ async function main() {
   const shutdown = async (signal: string) => {
     console.log(`\n${signal} received, shutting down...`);
 
+    // Cancel any pending tunnel restart
+    if (tunnelRestartTimer) {
+      clearTimeout(tunnelRestartTimer);
+      tunnelRestartTimer = null;
+    }
+
     cleanup.stop();
     await supabase.stopHeartbeat();
     if (tunnel) {
-      console.log('Closing automated tunnel...');
+      console.log('Closing tunnel...');
       try {
         tunnel.stop();
       } catch (err) {

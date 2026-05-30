@@ -4,6 +4,8 @@
 // ============================================
 
 import cron from 'node-cron';
+import fs from 'node:fs';
+import path from 'node:path';
 import type { SupabaseSyncService } from './supabase-sync.js';
 import type { StorageService } from './storage.js';
 import type { AppConfig } from '../config.js';
@@ -103,9 +105,49 @@ export class CleanupService {
     } catch (err) {
       this.logger.error('Cleanup cycle failed:', err);
     } finally {
+      // Always clean stale TUS partial uploads (older than 24 hours)
+      try {
+        await this.cleanStaleTusUploads();
+      } catch {
+        // Non-critical cleanup, ignore errors
+      }
       this.isRunning = false;
     }
 
     return cleanedCount;
+  }
+
+  /**
+   * Remove stale partial TUS uploads older than 24 hours.
+   * These accumulate when uploads are abandoned mid-transfer.
+   */
+  private async cleanStaleTusUploads(): Promise<void> {
+    const tusDir = path.join(this.config.DATA_DIR, '.tus-uploads');
+    try {
+      const entries = await fs.promises.readdir(tusDir, { withFileTypes: true });
+      const now = Date.now();
+      const maxAge = 24 * 60 * 60 * 1000; // 24 hours
+
+      let cleaned = 0;
+      for (const entry of entries) {
+        if (!entry.isFile()) continue;
+        const filePath = path.join(tusDir, entry.name);
+        try {
+          const stat = await fs.promises.stat(filePath);
+          if (now - stat.mtimeMs > maxAge) {
+            await fs.promises.unlink(filePath);
+            cleaned++;
+          }
+        } catch {
+          // File might have been deleted concurrently
+        }
+      }
+
+      if (cleaned > 0) {
+        this.logger.info(`Cleaned ${cleaned} stale TUS upload(s)`);
+      }
+    } catch {
+      // TUS directory might not exist yet
+    }
   }
 }

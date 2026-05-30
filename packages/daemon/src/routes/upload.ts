@@ -12,6 +12,7 @@ import type { StorageService } from '../services/storage.js';
 import type { SupabaseSyncService } from '../services/supabase-sync.js';
 import type { AppConfig } from '../config.js';
 import { sanitizeArchivePath } from '../utils/zip-stream.js';
+import { computeFileChecksum } from '../services/checksum.js';
 
 interface UploadRouteDeps {
   config: AppConfig;
@@ -87,6 +88,25 @@ export async function registerUploadRoutes(
           } catch (copyErr) {
             app.log.error(copyErr, 'Copy fallback also failed');
           }
+        }
+
+        // Background: compute SHA-256 checksum & store actual size in Supabase.
+        // Fire-and-forget so it doesn't block the next upload (important for 10+ GB files).
+        const fileId = metadata['file_id'];
+        if (fileId) {
+          void (async () => {
+            try {
+              await fs.promises.access(targetPath, fs.constants.R_OK);
+              const checksum = await computeFileChecksum(targetPath);
+              const stat = await fs.promises.stat(targetPath);
+              await deps.supabase.getClient()
+                .from('files')
+                .update({ checksum, size_bytes: stat.size })
+                .eq('id', fileId);
+            } catch {
+              // Non-critical: checksum will remain null
+            }
+          })();
         }
       }
 

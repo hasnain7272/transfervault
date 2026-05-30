@@ -8,7 +8,7 @@ import type { AppConfig } from '../config.js';
 import type { SupabaseSyncService } from './supabase-sync.js';
 import type { StorageService } from './storage.js';
 import { generatePairCode, normalizePairCode } from './pairing.js';
-import { computeFileChecksum } from './checksum.js';
+// Checksums are now computed in the TUS upload hook (routes/upload.ts)
 import type {
   CreateTransferRequest,
   CreateTransferResponse,
@@ -129,13 +129,6 @@ export class TransferService {
       try {
         const size = await this.storage.getFileSize(filePath);
         totalSize += size;
-
-        // Compute checksum
-        const checksum = await computeFileChecksum(filePath);
-        await this.supabase.getClient()
-          .from('files')
-          .update({ checksum, size_bytes: size })
-          .eq('id', file.id);
       } catch {
         throw new Error(`File not found on disk: ${file.filename}`);
       }

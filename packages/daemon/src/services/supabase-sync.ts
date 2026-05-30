@@ -110,18 +110,26 @@ export class SupabaseSyncService {
   }
 
   async incrementDownloadCount(transferId: string): Promise<void> {
-    // Use RPC or raw update
-    const { data: transfer } = await this.client
-      .from('transfers')
-      .select('download_count')
-      .eq('id', transferId)
-      .single();
+    // Atomic increment using optimistic concurrency control (compare-and-swap).
+    // Prevents race conditions when multiple downloads happen simultaneously.
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const { data: transfer } = await this.client
+        .from('transfers')
+        .select('download_count')
+        .eq('id', transferId)
+        .single();
 
-    if (transfer) {
-      await this.client
+      if (!transfer) return;
+
+      const { data } = await this.client
         .from('transfers')
         .update({ download_count: transfer.download_count + 1 })
-        .eq('id', transferId);
+        .eq('id', transferId)
+        .eq('download_count', transfer.download_count) // CAS: only succeeds if unchanged
+        .select('id');
+
+      if (data && data.length > 0) return; // Increment succeeded
+      // Another concurrent request modified the count — retry
     }
   }
 

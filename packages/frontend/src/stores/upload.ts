@@ -85,10 +85,9 @@ export const useUploadStore = create<UploadState>((set) => ({
       const files = state.files.map((f) =>
         f.id === id ? { ...f, progress, speed, eta, status: 'uploading' as const } : f,
       );
-      const overallProgress =
-        files.length > 0
-          ? files.reduce((sum, f) => sum + f.progress, 0) / files.length
-          : 0;
+      const totalBytes = files.reduce((sum, f) => sum + f.file.size, 0);
+      const uploadedBytes = files.reduce((sum, f) => sum + (f.file.size * (f.progress / 100)), 0);
+      const overallProgress = totalBytes > 0 ? (uploadedBytes / totalBytes) * 100 : 0;
       return { files, overallProgress };
     }),
 

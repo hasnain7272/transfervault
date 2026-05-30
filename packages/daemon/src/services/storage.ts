@@ -79,12 +79,27 @@ export class StorageService {
   async listTransferFiles(pairCode: string): Promise<string[]> {
     const dirPath = this.getTransferPath(pairCode);
     try {
-      const entries = await fs.promises.readdir(dirPath);
-      // Filter out TUS metadata files (.json info files)
-      return entries.filter((e) => !e.endsWith('.json'));
+      return await this.listFilesRecursive(dirPath, dirPath);
     } catch {
       return [];
     }
+  }
+
+  /**
+   * Recursively list all files in a directory, returning paths relative to baseDir.
+   */
+  private async listFilesRecursive(baseDir: string, currentDir: string): Promise<string[]> {
+    const entries = await fs.promises.readdir(currentDir, { withFileTypes: true });
+    const files: string[] = [];
+    for (const entry of entries) {
+      const fullPath = path.join(currentDir, entry.name);
+      if (entry.isFile() && !entry.name.endsWith('.json')) {
+        files.push(path.relative(baseDir, fullPath));
+      } else if (entry.isDirectory()) {
+        files.push(...await this.listFilesRecursive(baseDir, fullPath));
+      }
+    }
+    return files;
   }
 
   /**

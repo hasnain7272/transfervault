@@ -360,9 +360,16 @@ export function UploadPage() {
                   {f.status === 'complete' ? (
                     <Check className="h-5 w-5 text-accent-emerald" />
                   ) : f.status === 'uploading' ? (
-                    <span className="text-xs text-vault-400 font-mono">
-                      {Math.round(f.progress)}%
-                    </span>
+                    <div className="flex flex-col items-end gap-1">
+                      <span className="text-xs text-vault-400 font-mono font-medium">
+                        {Math.round(f.progress)}%
+                      </span>
+                      {f.speed > 0 && (
+                        <span className="text-[10px] text-surface-400 font-mono">
+                          {formatBytes(f.speed)}/s
+                        </span>
+                      )}
+                    </div>
                   ) : (
                     <button
                       onClick={(e) => {
@@ -508,7 +515,7 @@ export function UploadPage() {
               {uploading ? (
                 <>
                   <Loader2 className="h-5 w-5 animate-spin" />
-                  Uploading...
+                  Uploading... {store.overallProgress > 0 && `${Math.round(store.overallProgress)}%`}
                 </>
               ) : (
                 <>

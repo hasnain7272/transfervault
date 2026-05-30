@@ -81,10 +81,8 @@ export function DownloadPage() {
       link.click();
       document.body.removeChild(link);
 
-      store.setFileStatus(fileId, 'downloading');
-
-      // Mark as complete after a delay (we can't track external download progress)
-      setTimeout(() => store.setFileStatus(fileId, 'complete'), 3000);
+      // Mark as complete immediately (we can't track external browser download progress)
+      store.setFileStatus(fileId, 'complete');
     },
     [store],
   );
@@ -104,17 +102,10 @@ export function DownloadPage() {
     link.click();
     document.body.removeChild(link);
 
-    store.setStatus('downloading');
+    store.setStatus('complete');
     for (const file of store.files) {
-      store.setFileStatus(file.id, 'downloading');
+      store.setFileStatus(file.id, 'complete');
     }
-
-    setTimeout(() => {
-      for (const file of store.files) {
-        store.setFileStatus(file.id, 'complete');
-      }
-      store.setStatus('complete');
-    }, 3000);
   }, [store]);
 
   const handlePairCodeChange = useCallback(
