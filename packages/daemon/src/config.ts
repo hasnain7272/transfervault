@@ -37,6 +37,9 @@ const configSchema = z.object({
   // Public endpoint URL (e.g. from localtunnel or cloudflared)
   PUBLIC_URL: z.string().url().default('http://localhost:3001'),
 
+  // Enable automated localtunnel proxy
+  USE_LOCAL_TUNNEL: z.coerce.boolean().default(true),
+
   // CORS
   CORS_ORIGIN: z.string().default('*'),
 

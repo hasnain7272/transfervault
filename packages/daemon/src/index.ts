@@ -7,6 +7,7 @@ import 'dotenv/config';
 import { loadConfig } from './config.js';
 import { createServer } from './server.js';
 import { StorageService } from './services/storage.js';
+import localtunnel from 'localtunnel';
 import { SupabaseSyncService } from './services/supabase-sync.js';
 import { TransferService } from './services/transfer.js';
 import { CleanupService } from './services/cleanup.js';
@@ -69,6 +70,24 @@ async function main() {
   cleanup.start();
   console.log('✓ Cleanup service started');
 
+  // Automated Public Tunnel Setup
+  let tunnel: any = null;
+  if (config.USE_LOCAL_TUNNEL) {
+    try {
+      console.log('⚡ Establishing automated public HTTPS tunnel via localtunnel...');
+      // Start localtunnel programmatically on configured Fastify port
+      tunnel = await localtunnel({ port: config.PORT });
+      config.PUBLIC_URL = tunnel.url;
+      console.log(`✓ Automated HTTPS Tunnel established: ${config.PUBLIC_URL}`);
+      
+      tunnel.on('close', () => {
+        console.warn('⚠️ Automated HTTPS tunnel was closed.');
+      });
+    } catch (err) {
+      console.error('❌ Failed to establish automated HTTPS tunnel:', err);
+    }
+  }
+
   // 8. Start heartbeat
   supabase.startHeartbeat(async () => {
     const diskStats = await storage.getDiskStats();
@@ -99,6 +118,14 @@ async function main() {
 
     cleanup.stop();
     await supabase.stopHeartbeat();
+    if (tunnel) {
+      console.log('Closing automated tunnel...');
+      try {
+        await tunnel.close();
+      } catch (err) {
+        console.error('Error closing tunnel:', err);
+      }
+    }
     await app.close();
 
     console.log('Daemon stopped cleanly.');
