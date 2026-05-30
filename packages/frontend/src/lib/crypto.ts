@@ -27,7 +27,7 @@ export async function deriveKey(
   return crypto.subtle.deriveKey(
     {
       name: 'PBKDF2',
-      salt,
+      salt: salt as any,
       iterations: PBKDF2_ITERATIONS,
       hash: 'SHA-256',
     },
@@ -62,7 +62,7 @@ export async function encryptChunk(
   new DataView(aad.buffer).setUint32(0, chunkIndex, true);
 
   const ciphertext = await crypto.subtle.encrypt(
-    { name: 'AES-GCM', iv, additionalData: aad },
+    { name: 'AES-GCM', iv: iv as any, additionalData: aad as any },
     key,
     data,
   );
@@ -83,7 +83,7 @@ export async function decryptChunk(
   new DataView(aad.buffer).setUint32(0, chunkIndex, true);
 
   return crypto.subtle.decrypt(
-    { name: 'AES-GCM', iv, additionalData: aad },
+    { name: 'AES-GCM', iv: iv as any, additionalData: aad as any },
     key,
     ciphertext,
   );

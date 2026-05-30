@@ -21,6 +21,15 @@ export async function createServer(config: AppConfig): Promise<FastifyInstance> 
     trustProxy: true,
   });
 
+  // TUS Content-Type support
+  app.addContentTypeParser(
+    'application/offset+octet-stream',
+    (req, payload, done) => {
+      // Do not parse the body, leave the stream intact for TUS server to consume from req.raw
+      done(null);
+    }
+  );
+
   // CORS
   await app.register(cors, {
     origin: config.CORS_ORIGIN === '*' ? true : config.CORS_ORIGIN.split(','),
@@ -61,6 +70,12 @@ export async function createServer(config: AppConfig): Promise<FastifyInstance> 
   app.get('/health', async () => ({
     status: 'ok',
     timestamp: new Date().toISOString(),
+    version: '1.0.0',
+  }));
+
+  // Root route
+  app.get('/', async () => ({
+    status: 'TransferVault Daemon Running',
     version: '1.0.0',
   }));
 

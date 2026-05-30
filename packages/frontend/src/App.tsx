@@ -4,6 +4,8 @@ import { Layout } from '@/components/layout/Layout';
 import { HomePage } from '@/pages/HomePage';
 import { UploadPage } from '@/pages/UploadPage';
 import { DownloadPage } from '@/pages/DownloadPage';
+import { DashboardPage } from '@/pages/DashboardPage';
+import { AdminPage } from '@/pages/AdminPage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -18,13 +20,15 @@ const queryClient = new QueryClient({
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
+      <BrowserRouter basename={import.meta.env.BASE_URL}>
         <Routes>
           <Route path="/" element={<Layout />}>
             <Route index element={<HomePage />} />
             <Route path="upload" element={<UploadPage />} />
             <Route path="download" element={<DownloadPage />} />
             <Route path="download/:pairCode" element={<DownloadPage />} />
+            <Route path="dashboard" element={<DashboardPage />} />
+            <Route path="admin" element={<AdminPage />} />
           </Route>
         </Routes>
       </BrowserRouter>

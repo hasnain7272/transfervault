@@ -11,11 +11,11 @@ import {
   Check,
   Loader2,
   Shield,
-  ChevronDown,
 } from 'lucide-react';
 import { useUploadStore } from '@/stores/upload';
 import { formatBytes, formatPairCode } from '@/lib/utils';
 import { api } from '@/lib/api';
+import * as tus from 'tus-js-client';
 
 const EXPIRATION_OPTIONS = [
   { label: '1 hour', hours: 1 },
@@ -32,6 +32,7 @@ export function UploadPage() {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const folderInputRef = useRef<HTMLInputElement>(null);
 
   const handleDrag = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -60,9 +61,11 @@ export function UploadPage() {
   const handleFileSelect = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const selected = e.target.files;
-      if (selected) {
+      if (selected && selected.length > 0) {
         store.addFiles(Array.from(selected));
       }
+      // Reset value so same file can be selected again
+      e.target.value = '';
     },
     [store],
   );
@@ -80,10 +83,10 @@ export function UploadPage() {
         title: store.title || undefined,
         message: store.message || undefined,
         password: store.password || undefined,
-        maxDownloads: store.maxDownloads ?? undefined,
+        max_downloads: store.maxDownloads ?? undefined,
         is_encrypted: store.isEncrypted,
         files: store.files.map((f) => ({
-          filename: f.file.name,
+          filename: f.path,
           size_bytes: f.file.size,
           mime_type: f.file.type || undefined,
         })),
@@ -101,47 +104,34 @@ export function UploadPage() {
         store.setFileStatus(uploadFile.id, 'uploading');
 
         try {
-          // Use fetch-based upload for simplicity (TUS via Uppy can be added later)
-          const formData = new FormData();
-          formData.append('file', uploadFile.file);
-
-          // Simple upload with progress tracking via XMLHttpRequest
           await new Promise<void>((resolve, reject) => {
-            const xhr = new XMLHttpRequest();
-            xhr.open('POST', `${tusEndpoint}`, true);
-
-            // TUS headers
-            xhr.setRequestHeader('Tus-Resumable', '1.0.0');
-            xhr.setRequestHeader('Upload-Length', String(uploadFile.file.size));
-            xhr.setRequestHeader(
-              'Upload-Metadata',
-              `filename ${btoa(uploadFile.file.name)},pair_code ${btoa(result.pair_code.replace(/-/g, ''))},file_id ${btoa(uploadUrl.file_id)}`,
-            );
-            xhr.setRequestHeader('Content-Type', 'application/offset+octet-stream');
-            xhr.setRequestHeader('Upload-Offset', '0');
-
-            xhr.upload.onprogress = (e) => {
-              if (e.lengthComputable) {
-                const progress = (e.loaded / e.total) * 100;
-                const speed = e.loaded / ((Date.now() - startTime) / 1000);
-                const eta = (e.total - e.loaded) / speed;
-                store.updateFileProgress(uploadFile.id, progress, speed, eta);
-              }
-            };
-
             const startTime = Date.now();
-
-            xhr.onload = () => {
-              if (xhr.status >= 200 && xhr.status < 400) {
+            
+            const upload = new tus.Upload(uploadFile.file, {
+              endpoint: tusEndpoint,
+              retryDelays: [0, 1000, 3000, 5000],
+              metadata: {
+                filename: uploadFile.path || uploadFile.file.name,
+                filetype: uploadFile.file.type || 'application/octet-stream',
+                pair_code: result.pair_code.replace(/-/g, ''),
+                file_id: uploadUrl.file_id
+              },
+              onError: (error) => {
+                reject(error);
+              },
+              onProgress: (bytesUploaded, bytesTotal) => {
+                const progress = (bytesUploaded / bytesTotal) * 100;
+                const speed = bytesUploaded / Math.max(0.1, (Date.now() - startTime) / 1000);
+                const eta = (bytesTotal - bytesUploaded) / speed;
+                store.updateFileProgress(uploadFile.id, progress, speed, eta);
+              },
+              onSuccess: () => {
                 store.setFileStatus(uploadFile.id, 'complete');
                 resolve();
-              } else {
-                reject(new Error(`Upload failed: ${xhr.status}`));
               }
-            };
+            });
 
-            xhr.onerror = () => reject(new Error('Upload failed'));
-            xhr.send(uploadFile.file);
+            upload.start();
           });
         } catch (err) {
           store.setFileStatus(uploadFile.id, 'error', String(err));
@@ -267,17 +257,25 @@ export function UploadPage() {
           transition={{ delay: 0.1 }}
         >
           <div
-            className={`dropzone p-12 text-center cursor-pointer ${dragActive ? 'active' : ''}`}
+            className={`dropzone p-12 text-center border-2 border-dashed rounded-3xl transition-colors ${dragActive ? 'border-vault-500 bg-vault-500/5' : 'border-surface-300 hover:border-vault-400'}`}
             onDragEnter={handleDrag}
             onDragOver={handleDrag}
             onDragLeave={handleDrag}
             onDrop={handleDrop}
-            onClick={() => fileInputRef.current?.click()}
           >
             <input
               ref={fileInputRef}
               type="file"
               multiple
+              className="hidden"
+              onChange={handleFileSelect}
+            />
+            {/* Folder select input */}
+            <input
+              ref={folderInputRef}
+              type="file"
+              multiple
+              {...({ webkitdirectory: "", directory: "" } as any)}
               className="hidden"
               onChange={handleFileSelect}
             />
@@ -287,12 +285,25 @@ export function UploadPage() {
               </div>
               <div>
                 <p className="text-lg font-semibold text-surface-800">
-                  Drop files here or{' '}
-                  <span className="text-vault-400">browse</span>
+                  Drop files and folders here
                 </p>
-                <p className="mt-1 text-sm text-surface-500">
+                <p className="mt-1 text-sm text-surface-500 mb-6">
                   Any file type · No size limit
                 </p>
+                <div className="flex items-center justify-center gap-4">
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    className="btn-secondary"
+                  >
+                    Select Files
+                  </button>
+                  <button
+                    onClick={() => folderInputRef.current?.click()}
+                    className="btn-secondary"
+                  >
+                    Select Folder
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -319,8 +330,8 @@ export function UploadPage() {
                     <FileIcon className="h-5 w-5 text-surface-600" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-surface-800 truncate">
-                      {f.file.name}
+                    <p className="text-sm font-medium text-surface-800 truncate" title={f.path}>
+                      {f.path}
                     </p>
                     <p className="text-xs text-surface-500">
                       {formatBytes(f.file.size)}

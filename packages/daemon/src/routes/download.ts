@@ -28,7 +28,7 @@ export async function registerDownloadRoutes(
   // ──────────────────────────────────────────
   app.get<{
     Params: { transferId: string; fileId: string };
-    Querystring: { password?: string };
+    Querystring: { password?: string; admin_secret?: string };
   }>(
     '/api/download/:transferId/:fileId',
     {
@@ -44,7 +44,22 @@ export async function registerDownloadRoutes(
 
       try {
         // Verify password if needed
-        if (request.query.password) {
+        const adminSecret = (request.headers['x-daemon-secret'] || request.query.admin_secret) as string | undefined;
+        const isAdmin = adminSecret === config.DAEMON_SECRET;
+
+        // Check if transfer exists and has a password
+        const transfer = await supabase.getTransferById(transferId);
+        if (!transfer) {
+          return reply.status(404).send({ error: 'Transfer not found' });
+        }
+
+        const hasPassword = !!transfer.password_hash;
+
+        // If transfer has password, verify it unless admin
+        if (hasPassword && !isAdmin) {
+          if (!request.query.password) {
+            return reply.status(401).send({ error: 'Password required' });
+          }
           const valid = await transferService.verifyPassword(transferId, request.query.password);
           if (!valid) {
             await supabase.logAudit({

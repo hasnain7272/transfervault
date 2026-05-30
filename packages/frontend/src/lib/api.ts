@@ -3,7 +3,12 @@
 // Communicates with the laptop daemon.
 // ============================================
 
-const DAEMON_URL = import.meta.env.VITE_DAEMON_URL as string || '';
+export function getDaemonUrl(): string {
+  const stored = localStorage.getItem('transfervault_daemon_url');
+  if (stored) return stored.replace(/\/$/, '');
+  const envUrl = (import.meta.env.VITE_DAEMON_URL as string) || '';
+  return envUrl.replace(/\/$/, '') || 'http://localhost:3001';
+}
 
 interface CreateTransferRequest {
   expires_in_hours: number;
@@ -57,7 +62,7 @@ async function fetchApi<T>(
   path: string,
   options: RequestInit = {},
 ): Promise<T> {
-  const url = `${DAEMON_URL}${path}`;
+  const url = `${getDaemonUrl()}${path}`;
   const res = await fetch(url, {
     ...options,
     headers: {
@@ -92,6 +97,7 @@ export const api = {
   finalizeTransfer(transferId: string): Promise<{ status: string }> {
     return fetchApi(`/api/transfers/${transferId}/finalize`, {
       method: 'POST',
+      body: JSON.stringify({}),
     });
   },
 
@@ -123,7 +129,7 @@ export const api = {
     fileId: string,
     password?: string,
   ): string {
-    const base = `${DAEMON_URL}/api/download/${transferId}/${fileId}`;
+    const base = `${getDaemonUrl()}/api/download/${transferId}/${fileId}`;
     if (password) {
       return `${base}?password=${encodeURIComponent(password)}`;
     }
@@ -132,7 +138,23 @@ export const api = {
 
   /** Get TUS endpoint URL */
   getTusEndpoint(): string {
-    return `${DAEMON_URL}/api/tus`;
+    return `${getDaemonUrl()}/api/tus`;
+  },
+
+  /** Admin: Get all transfers */
+  getAdminTransfers(adminSecret: string): Promise<any[]> {
+    return fetchApi('/api/admin/transfers', {
+      headers: { 'x-daemon-secret': adminSecret },
+    });
+  },
+
+  /** Admin: Get secure download URL bypassing password */
+  getAdminDownloadUrl(
+    transferId: string,
+    fileId: string,
+    adminSecret: string,
+  ): string {
+    return `${getDaemonUrl()}/api/download/${transferId}/${fileId}?admin_secret=${encodeURIComponent(adminSecret)}`;
   },
 };
 

@@ -1,11 +1,10 @@
 import { useCallback, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import {
   Download,
   FileIcon,
   Lock,
   Clock,
-  Hash,
   ArrowDown,
   Loader2,
   AlertCircle,

@@ -3,6 +3,7 @@ import { create } from 'zustand';
 export interface UploadFile {
   id: string;
   file: File;
+  path: string;
   progress: number;
   speed: number; // bytes/sec
   eta: number; // seconds
@@ -63,6 +64,7 @@ export const useUploadStore = create<UploadState>((set) => ({
         ...newFiles.map((file) => ({
           id: `${file.name}-${file.size}-${Date.now()}`,
           file,
+          path: file.webkitRelativePath || file.name,
           progress: 0,
           speed: 0,
           eta: 0,
