@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import { useUploadStore } from '@/stores/upload';
 import { formatBytes, formatPairCode } from '@/lib/utils';
-import { api } from '@/lib/api';
+import { api, discoverDaemonUrl } from '@/lib/api';
 import * as tus from 'tus-js-client';
 
 const EXPIRATION_OPTIONS = [
@@ -77,6 +77,10 @@ export function UploadPage() {
     setError(null);
 
     try {
+      // Refresh daemon URL registry from Supabase dynamically right before uploading!
+      // This handles cases where the daemon has restarted or localtunnel has assigned a new dynamic HTTPS URL.
+      await discoverDaemonUrl();
+
       // 1. Create transfer on daemon
       const result = await api.createTransfer({
         expires_in_hours: store.expirationHours,

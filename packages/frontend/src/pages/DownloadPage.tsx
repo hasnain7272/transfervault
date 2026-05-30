@@ -19,7 +19,7 @@ import {
   validatePairCode,
   formatRelativeTime,
 } from '@/lib/utils';
-import { api } from '@/lib/api';
+import { api, discoverDaemonUrl } from '@/lib/api';
 
 export function DownloadPage() {
   const store = useDownloadStore();
@@ -35,6 +35,8 @@ export function DownloadPage() {
     store.setStatus('looking_up');
 
     try {
+      // Dynamic matchmaking: fetch the absolute latest daemon URL from Supabase before looking up
+      await discoverDaemonUrl();
       const transfer = await api.lookupTransfer(normalized);
       store.setTransfer(transfer);
     } catch {

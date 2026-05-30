@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { formatBytes } from '@/lib/utils';
 import { Loader2, Activity, HardDrive, Download, Upload, Settings, CheckCircle2, AlertCircle, RefreshCw, Trash2 } from 'lucide-react';
-import { getDaemonUrl, api } from '@/lib/api';
+import { getDaemonUrl, api, discoverDaemonUrl } from '@/lib/api';
 
 export function AdminPage() {
   const [stats, setStats] = useState<any>(null);
@@ -18,6 +18,7 @@ export function AdminPage() {
 
   const fetchStats = async (adminSecret: string) => {
     try {
+      await discoverDaemonUrl(); // Fetch dynamic public URL
       const DAEMON_URL = getDaemonUrl();
       if (!DAEMON_URL) {
         throw new Error('No active daemon URL resolved. Ensure your daemon is running and has registered its URL.');
