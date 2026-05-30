@@ -426,6 +426,7 @@ export function UploadPage() {
               </label>
               <input
                 type="password"
+                autoComplete="new-password"
                 value={store.password}
                 onChange={(e) => store.setConfig({ password: e.target.value })}
                 placeholder="Enter a password to protect this transfer"
