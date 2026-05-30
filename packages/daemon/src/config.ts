@@ -34,6 +34,9 @@ const configSchema = z.object({
   // Heartbeat
   HEARTBEAT_INTERVAL_MS: z.coerce.number().default(30_000), // 30 seconds
 
+  // Public endpoint URL (e.g. from localtunnel or cloudflared)
+  PUBLIC_URL: z.string().url().default('http://localhost:3001'),
+
   // CORS
   CORS_ORIGIN: z.string().default('*'),
 

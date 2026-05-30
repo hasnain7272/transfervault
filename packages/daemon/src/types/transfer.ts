@@ -70,6 +70,7 @@ export interface DaemonStatus {
   active_uploads: number;
   active_downloads: number;
   version: string | null;
+  public_url: string | null;
 }
 
 export interface CreateTransferRequest {

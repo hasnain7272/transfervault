@@ -5,7 +5,6 @@
 
 import type { FastifyInstance } from 'fastify';
 import fs from 'node:fs';
-import path from 'node:path';
 import type { TransferService } from '../services/transfer.js';
 import type { SupabaseSyncService } from '../services/supabase-sync.js';
 import type { AppConfig } from '../config.js';
@@ -78,7 +77,7 @@ export async function registerDownloadRoutes(
           return reply.status(404).send({ error: 'File not found' });
         }
 
-        const { path: filePath, filename, size, mime } = fileInfo;
+        const { path: filePath, filename, mime } = fileInfo;
 
         // Check file exists on disk
         try {

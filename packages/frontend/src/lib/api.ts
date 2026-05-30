@@ -3,11 +3,37 @@
 // Communicates with the laptop daemon.
 // ============================================
 
+import { supabase } from './supabase';
+
 export function getDaemonUrl(): string {
-  const stored = localStorage.getItem('transfervault_daemon_url');
-  if (stored) return stored.replace(/\/$/, '');
+  const manual = localStorage.getItem('transfervault_daemon_url');
+  if (manual) return manual.replace(/\/$/, '');
+
+  const discovered = localStorage.getItem('transfervault_discovered_daemon_url');
+  if (discovered) return discovered.replace(/\/$/, '');
+
   const envUrl = (import.meta.env.VITE_DAEMON_URL as string) || '';
   return envUrl.replace(/\/$/, '') || 'http://localhost:3001';
+}
+
+export async function discoverDaemonUrl(): Promise<string | null> {
+  try {
+    const { data, error } = await supabase
+      .from('daemon_status')
+      .select('public_url, is_online')
+      .eq('id', 'main')
+      .single();
+
+    if (error) throw error;
+    if (data && data.is_online && data.public_url) {
+      const cleanUrl = data.public_url.replace(/\/$/, '');
+      localStorage.setItem('transfervault_discovered_daemon_url', cleanUrl);
+      return cleanUrl;
+    }
+  } catch (err) {
+    console.error('Failed to auto-discover daemon url from supabase:', err);
+  }
+  return null;
 }
 
 interface CreateTransferRequest {

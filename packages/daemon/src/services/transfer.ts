@@ -3,7 +3,7 @@
 // Business logic for transfer operations.
 // ============================================
 
-import { hash, verify, Algorithm } from '@node-rs/argon2';
+import { hash, verify } from '@node-rs/argon2';
 import type { AppConfig } from '../config.js';
 import type { SupabaseSyncService } from './supabase-sync.js';
 import type { StorageService } from './storage.js';
@@ -13,12 +13,11 @@ import type {
   CreateTransferRequest,
   CreateTransferResponse,
   TransferLookupResponse,
-  TransferRecord,
 } from '../types/transfer.js';
 
 export class TransferService {
   constructor(
-    private readonly config: AppConfig,
+    _config: AppConfig,
     private readonly supabase: SupabaseSyncService,
     private readonly storage: StorageService,
   ) {}
@@ -36,7 +35,7 @@ export class TransferService {
     let passwordHash: string | null = null;
     if (req.password) {
       passwordHash = await hash(req.password, {
-        algorithm: Algorithm.Argon2id,
+        algorithm: 2, // Argon2id default
         memoryCost: 65536,
         timeCost: 3,
         parallelism: 4,

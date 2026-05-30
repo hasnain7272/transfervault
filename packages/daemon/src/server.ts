@@ -24,7 +24,7 @@ export async function createServer(config: AppConfig): Promise<FastifyInstance> 
   // TUS Content-Type support
   app.addContentTypeParser(
     'application/offset+octet-stream',
-    (req, payload, done) => {
+    (_req, _payload, done) => {
       // Do not parse the body, leave the stream intact for TUS server to consume from req.raw
       done(null);
     }

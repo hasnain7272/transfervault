@@ -76,6 +76,7 @@ async function main() {
       disk_total_bytes: diskStats.total,
       disk_free_bytes: diskStats.free,
       version: '1.0.0',
+      public_url: config.PUBLIC_URL,
     };
   });
   console.log('✓ Heartbeat started');

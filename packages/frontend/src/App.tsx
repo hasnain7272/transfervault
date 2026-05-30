@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Layout } from '@/components/layout/Layout';
@@ -6,6 +7,7 @@ import { UploadPage } from '@/pages/UploadPage';
 import { DownloadPage } from '@/pages/DownloadPage';
 import { DashboardPage } from '@/pages/DashboardPage';
 import { AdminPage } from '@/pages/AdminPage';
+import { discoverDaemonUrl } from '@/lib/api';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -18,6 +20,10 @@ const queryClient = new QueryClient({
 });
 
 function App() {
+  useEffect(() => {
+    void discoverDaemonUrl();
+  }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter basename={import.meta.env.BASE_URL}>
