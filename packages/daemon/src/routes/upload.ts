@@ -38,11 +38,10 @@ export async function registerUploadRoutes(
       return `${resolvedProto}://${host}${tusPath}/${id}`;
     },
     namingFunction: (_req, metadata) => {
-      // Use transfer-specific naming: {pairCode}_{fileId}_{filename}
+      // Safe flat naming to prevent slashes in relative folder paths from breaking TUS storage
       const pairCode = metadata?.['pair_code'] ?? 'unknown';
       const fileId = metadata?.['file_id'] ?? 'unknown';
-      const filename = metadata?.['filename'] ?? 'file';
-      return `${pairCode}_${fileId}_${filename}`;
+      return `${pairCode}_${fileId}`;
     },
     onUploadCreate: async (_req, _res, upload) => {
       app.log.info(`TUS upload created: ${upload.id} (${upload.size} bytes)`);
@@ -62,7 +61,8 @@ export async function registerUploadRoutes(
         const targetPath = path.join(targetDir, filename);
 
         try {
-          await fs.promises.mkdir(targetDir, { recursive: true });
+          // Recursively create target folder structure (especially for nested folder uploads)
+          await fs.promises.mkdir(path.dirname(targetPath), { recursive: true });
           await fs.promises.rename(sourcePath, targetPath);
 
           // Clean up TUS metadata files
